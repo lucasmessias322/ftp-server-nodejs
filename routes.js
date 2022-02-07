@@ -4,7 +4,8 @@ const multer = require("multer");
 const multerConfig = require("./config/multer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-
+const fs = require("fs");
+const rimraf = require("rimraf");
 // models
 const User = require("./models/AdminUser");
 
@@ -25,50 +26,50 @@ function checkToken(req, res, next) {
   }
 }
 // Register
-routes.post("/auth/register", async (req, res) => {
-  const { name, email, password, confirmpassword } = req.body;
+// routes.post("/auth/register", async (req, res) => {
+//   const { name, email, password, confirmpassword } = req.body;
 
-  // validations
-  if (!name) {
-    return res.status(422).json({ msg: "O nome é obrigatório!" });
-  } else if (!email) {
-    return res.status(422).json({ msg: "O email é obrigatório!" });
-  } else if (!password) {
-    return res.status(422).json({ msg: "A senha é obrigatória!" });
-  } else if (password != confirmpassword) {
-    return res
-      .status(422)
-      .json({ msg: "A senha e a confirmação precisam ser iguais!" });
-  }
+//   // validations
+//   if (!name) {
+//     return res.status(422).json({ msg: "O nome é obrigatório!" });
+//   } else if (!email) {
+//     return res.status(422).json({ msg: "O email é obrigatório!" });
+//   } else if (!password) {
+//     return res.status(422).json({ msg: "A senha é obrigatória!" });
+//   } else if (password != confirmpassword) {
+//     return res
+//       .status(422)
+//       .json({ msg: "A senha e a confirmação precisam ser iguais!" });
+//   }
 
-  // check if user exists
-  const userExists = await User.findOne({ email: email });
+//   // check if user exists
+//   const userExists = await User.findOne({ email: email });
 
-  if (userExists) {
-    return res.status(422).json({ msg: "Por favor, utilize outro e-mail!" });
-  }
+//   if (userExists) {
+//     return res.status(422).json({ msg: "Por favor, utilize outro e-mail!" });
+//   }
 
-  // create password
-  const salt = await bcrypt.genSalt(12);
-  const passwordHash = await bcrypt.hash(password, salt);
+//   // create password
+//   const salt = await bcrypt.genSalt(12);
+//   const passwordHash = await bcrypt.hash(password, salt);
 
-  // create user
-  const user = new User({
-    name,
-    email,
-    password: passwordHash,
-  });
+//   // create user
+//   const user = new User({
+//     name,
+//     email,
+//     password: passwordHash,
+//   });
 
-  try {
-    await user.save();
+//   try {
+//     await user.save();
 
-    res
-      .status(201)
-      .json({ msg: "Usuário criado com sucesso!", userCriado: true });
-  } catch (error) {
-    res.status(500).json({ msg: error });
-  }
-});
+//     res
+//       .status(201)
+//       .json({ msg: "Usuário criado com sucesso!", userCriado: true });
+//   } catch (error) {
+//     res.status(500).json({ msg: error });
+//   }
+// });
 
 routes.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
@@ -113,6 +114,52 @@ routes.post("/auth/login", async (req, res) => {
       .json({ currentUser, msg: "Autenticação realizada com sucesso!", token });
   } catch (error) {
     res.status(500).json({ msg: error });
+  }
+});
+
+// Delete file
+routes.delete("/deletar/:file", checkToken, (req, res) => {
+  const file = req.params.file;
+  const filePAth = `${__dirname}/public/ftp/${file}`;
+  fs.unlink(filePAth, (err) => {
+    if (err) res.json({ msg: `erro ao deletar arquivo ${file}`, err });
+    return res.json({ msg: `arquivo ${file} deletado com sucesso` });
+  });
+});
+
+//Create a new dir
+routes.post("/createNewDir/:dirname", checkToken, (req, res) => {
+  const dir = req.params.dirname;
+  const dirPath = `${__dirname}/public/ftp/${dir}`;
+
+  //Verifica se não existe
+  if (!fs.existsSync(dirPath)) {
+    //Efetua a criação do diretório
+    fs.mkdir(dirPath, (err) => {
+      if (err) {
+        res.json({ msg: "hum algo deu errado! :(", err });
+        return;
+      }
+
+      res.json({ msg: `Diretório ${dir} criado! =)` });
+    });
+  } else {
+    res.json({ msg: `O Diretorio ${dir} ja existe!` });
+  }
+});
+
+// Delete a Dir
+routes.delete("/deleteDir/:dirname", checkToken, (req, res) => {
+  const dir = req.params.dirname;
+  const dirPath = `${__dirname}/public/ftp/${dir}`;
+
+  if (!fs.existsSync(dirPath)) {
+    res.json({ msg: `O diretorio não existe!` });
+  } else {
+    rimraf(dirPath, function (err) {
+      if (err) res.json({ msg: `erro ao deletar Diretorio`, err });
+      return res.json({ msg: `Diretorio  deletado com sucesso` });
+    });
   }
 });
 
