@@ -166,7 +166,7 @@ routes.delete("/deleteDir/:dirname", checkToken, (req, res) => {
 
 // Upload file
 routes.post(
-  "/postAudio",
+  "/addNewFile",
   checkToken,
   multer(multerConfig).single("file"),
   async (req, res) => {
